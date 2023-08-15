@@ -7,6 +7,7 @@ using Firebase.Messaging;
 using Plugin.Firebase.CloudMessaging.EventArgs;
 using Plugin.Firebase.CloudMessaging.Platforms.Android.Extensions;
 using Plugin.Firebase.Core;
+using System.Runtime.CompilerServices;
 using Application = Android.App.Application;
 
 namespace Plugin.Firebase.CloudMessaging;
@@ -14,12 +15,14 @@ namespace Plugin.Firebase.CloudMessaging;
 public sealed class FirebaseCloudMessagingImplementation : DisposableBase, IFirebaseCloudMessaging
 {
     private const string IntentKeyFCMNotification = "intent_key_fcm_notification";
+    public static Type NotificationActivityType { get; set; }
+    public static string ActionIdentifierKey = "action_identifier";
     private static Context _context;
-
+    private static IList<NotificationUserCategory> userNotificationCategories = new List<NotificationUserCategory>();
     public static string ChannelId { get; set; }
     public static int SmallIconRef { private get; set; } = global::Android.Resource.Drawable.SymDefAppIcon;
     public static Func<FCMNotification, NotificationCompat.Builder> NotificationBuilderProvider { private get; set; }
-
+    public static ActivityFlags? NotificationActivityFlags { get; set; } = ActivityFlags.ClearTop | ActivityFlags.SingleTop;
     private FCMNotification _missedTappedNotification;
 
     public FirebaseCloudMessagingImplementation()
@@ -70,17 +73,83 @@ public sealed class FirebaseCloudMessagingImplementation : DisposableBase, IFire
             HandleShowLocalNotification(fcmNotification);
         }
     }
+    public static void ClearUserNotificationCategories()
+    {
+        userNotificationCategories.Clear();
+    }
 
+    public static void RegisterUserNotificationCategories(NotificationUserCategory[] notificationCategories)
+    {
+        if(notificationCategories != null && notificationCategories.Length > 0) {
+            ClearUserNotificationCategories();
+
+            foreach(var userCat in notificationCategories) {
+                userNotificationCategories.Add(userCat);
+            }
+
+        } else {
+            ClearUserNotificationCategories();
+        }
+    }
+    public static NotificationUserCategory[] GetUserNotificationCategories()
+    {
+        return userNotificationCategories?.ToArray();
+    }
     private static void HandleShowLocalNotification(FCMNotification notification)
     {
+        
+       
         var intent = _context.PackageManager.GetLaunchIntentForPackage(_context.PackageName);
         intent.PutExtra(IntentKeyFCMNotification, notification.ToBundle());
         intent.SetFlags(ActivityFlags.ClearTop | ActivityFlags.SingleTop);
+
         var pendingIntent = PendingIntent.GetActivity(_context, 0, intent,
             PendingIntentFlags.Immutable | PendingIntentFlags.UpdateCurrent);
         var builder = NotificationBuilderProvider?.Invoke(notification) ?? CreateDefaultNotificationBuilder(notification);
+
+        //Check for category
+        if(notification.ActionKey != "") {
+            var extras = new Bundle();
+            var notificationCategories = GetUserNotificationCategories();
+            if(notificationCategories != null && notificationCategories.Length > 0) {
+                //Check for actions
+                foreach(var userCat in notificationCategories) 
+                    {
+                    if(userCat != null && userCat.Actions != null && userCat.Actions.Count > 0) {
+                        foreach(var action in userCat.Actions) 
+                            {
+                            var aRequestCode = Guid.NewGuid().GetHashCode();
+                            if(userCat.Category.Equals(notification.ActionKey, StringComparison.CurrentCultureIgnoreCase)) {
+                                Intent actionIntent = null;
+                                PendingIntent pendingActionIntent = null;
+                                
+
+                                if(action.Type == NotificationActionType.Foreground) {
+                                    actionIntent = new Intent(Application.Context, NotificationActivityType);
+
+                                    if(NotificationActivityFlags != null) {
+                                        actionIntent.SetFlags(NotificationActivityFlags.Value);
+                                    }
+
+                                    extras.PutString(ActionIdentifierKey, action.Id);
+                                    actionIntent.PutExtras(extras);
+                                    pendingActionIntent = PendingIntent.GetActivity(_context, aRequestCode, actionIntent, PendingIntentFlags.UpdateCurrent | PendingIntentFlags.Immutable);
+
+                                }
+                            }
+
+                        }
+                    }
+                }
+            }
+        }
+
+        
+        
+
         var notificationManager = (NotificationManager) _context.GetSystemService(Context.NotificationService);
         notificationManager.Notify(1337, builder.SetContentIntent(pendingIntent).Build());
+
     }
 
     private static NotificationCompat.Builder CreateDefaultNotificationBuilder(FCMNotification notification)
@@ -94,12 +163,28 @@ public sealed class FirebaseCloudMessagingImplementation : DisposableBase, IFire
             .SetAutoCancel(true);
     }
 
-    public static void OnNewIntent(Intent intent)
+    public static void OnNewIntent(Activity activity, Intent intent)
     {
+        NotificationActivityType = activity.GetType();
+
+
         if(intent.IsNotificationTappedIntent(IntentKeyFCMNotification)) {
             ((FirebaseCloudMessagingImplementation) CrossFirebaseCloudMessaging.Current).HandleNotificationFromIntent(intent);
+        } else {
+            //action?
+            ((FirebaseCloudMessagingImplementation) CrossFirebaseCloudMessaging.Current).HandleNotificationActionFromIntent(intent);
         }
+               
+                    
+
+
+              
+            
+
+        
     }
+        
+    
 
     private void HandleNotificationFromIntent(Intent intent)
     {
@@ -108,6 +193,16 @@ public sealed class FirebaseCloudMessagingImplementation : DisposableBase, IFire
             _missedTappedNotification = notification;
         } else {
             _notificationTapped.Invoke(this, new FCMNotificationTappedEventArgs(notification));
+        }
+        intent.RemoveExtra(IntentKeyFCMNotification);
+    }
+    private void HandleNotificationActionFromIntent(Intent intent)
+    {
+        var notification = intent.GetNotificationFromExtras(IntentKeyFCMNotification);
+        if(NotificationActionTapped == null) {
+            _missedTappedNotification = notification;
+        } else {
+            NotificationActionTapped.Invoke(this, new FCMNotificationActionEventArgs(notification));
         }
         intent.RemoveExtra(IntentKeyFCMNotification);
     }
@@ -131,7 +226,8 @@ public sealed class FirebaseCloudMessagingImplementation : DisposableBase, IFire
     public event EventHandler<FCMTokenChangedEventArgs> TokenChanged;
     public event EventHandler<FCMNotificationReceivedEventArgs> NotificationReceived;
     public event EventHandler<FCMErrorEventArgs> Error;
-
+    public event EventHandler<FCMNotificationActionEventArgs> NotificationActionTapped;
+   
     private event EventHandler<FCMNotificationTappedEventArgs> _notificationTapped;
     public event EventHandler<FCMNotificationTappedEventArgs> NotificationTapped {
         add {

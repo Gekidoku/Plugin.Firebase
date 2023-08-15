@@ -10,6 +10,7 @@ public class MyFirebaseMessagingService : FirebaseMessagingService
     public override void OnMessageReceived(RemoteMessage message)
     {
         base.OnMessageReceived(message);
+        
         CrossFirebaseCloudMessaging.Current.OnNotificationReceived(message.ToFCMNotification());
     }
 

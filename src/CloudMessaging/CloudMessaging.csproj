@@ -70,6 +70,13 @@
         <Compile Include="Platforms\iOS\**\*.cs" />
     </ItemGroup>
 
+    <ItemGroup>
+      <None Remove="Shared\EventArgs\FCMNotificationActionEventArgs.cs" />
+      <None Remove="Shared\NotificationActionType.cs" />
+      <None Remove="Shared\NotificationCategoryType.cs" />
+      <None Remove="Shared\NotificationUserCategory.cs" />
+    </ItemGroup>
+
     <!-- project references -->
     <ItemGroup>
         <ProjectReference Include="..\Core\Core.csproj" />
