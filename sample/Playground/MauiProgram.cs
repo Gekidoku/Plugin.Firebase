@@ -75,6 +75,7 @@ public static class MauiProgram
 #else
             events.AddAndroid(android => android.OnCreate((activity, _) =>
                 CrossFirebase.Initialize(activity, CreateCrossFirebaseSettings())));
+                
 #endif
         });
 
@@ -119,6 +120,6 @@ public static class MauiProgram
             isFunctionsEnabled: true,
             isRemoteConfigEnabled: true,
             isStorageEnabled: true,
-            googleRequestIdToken: "537235599720-723cgj10dtm47b4ilvuodtp206g0q0fg.apps.googleusercontent.com");
+            googleRequestIdToken: "864165578426-g0taorcj9ff8rhgiuc3cuh83nlhjvnap.apps.googleusercontent.com");
     }
 }

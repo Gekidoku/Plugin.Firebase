@@ -35,4 +35,5 @@ public static class CrossFirebase
 
         Console.WriteLine($"Plugin.Firebase initialized with the following settings:\n{settings}");
     }
+    
 }

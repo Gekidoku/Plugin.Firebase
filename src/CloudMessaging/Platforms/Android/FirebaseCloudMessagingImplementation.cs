@@ -134,8 +134,9 @@ public sealed class FirebaseCloudMessagingImplementation : DisposableBase, IFire
                                     extras.PutString(ActionIdentifierKey, action.Id);
                                     actionIntent.PutExtras(extras);
                                     pendingActionIntent = PendingIntent.GetActivity(_context, aRequestCode, actionIntent, PendingIntentFlags.UpdateCurrent | PendingIntentFlags.Immutable);
-
+                                    
                                 }
+                                builder.AddAction(new NotificationCompat.Action.Builder(_context.Resources.GetIdentifier(action.Icon, "drawable", Application.Context.PackageName), action.Title, pendingActionIntent).Build());
                             }
 
                         }
@@ -159,7 +160,7 @@ public sealed class FirebaseCloudMessagingImplementation : DisposableBase, IFire
             .TrySetBigPictureStyle(notification)
             .SetContentTitle(notification.Title)
             .SetContentText(notification.Body)
-            .SetPriority(NotificationCompat.PriorityDefault)
+            .SetPriority(NotificationCompat.PriorityHigh)
             .SetAutoCancel(true);
     }
 
@@ -169,19 +170,20 @@ public sealed class FirebaseCloudMessagingImplementation : DisposableBase, IFire
 
 
         if(intent.IsNotificationTappedIntent(IntentKeyFCMNotification)) {
-            ((FirebaseCloudMessagingImplementation) CrossFirebaseCloudMessaging.Current).HandleNotificationFromIntent(intent);
-        } else {
-            //action?
-            ((FirebaseCloudMessagingImplementation) CrossFirebaseCloudMessaging.Current).HandleNotificationActionFromIntent(intent);
-        }
-               
-                    
-
-
-              
+            var temp = intent.GetNotificationFromExtras(IntentKeyFCMNotification);
             
+            ((FirebaseCloudMessagingImplementation) CrossFirebaseCloudMessaging.Current).HandleNotificationFromIntent(intent);
 
-        
+            // ((FirebaseCloudMessagingImplementation) CrossFirebaseCloudMessaging.Current).HandleNotificationActionFromIntent(intent);
+        }
+
+
+
+
+
+
+
+
     }
         
     
@@ -199,10 +201,15 @@ public sealed class FirebaseCloudMessagingImplementation : DisposableBase, IFire
     private void HandleNotificationActionFromIntent(Intent intent)
     {
         var notification = intent.GetNotificationFromExtras(IntentKeyFCMNotification);
-        if(NotificationActionTapped == null) {
-            _missedTappedNotification = notification;
-        } else {
-            NotificationActionTapped.Invoke(this, new FCMNotificationActionEventArgs(notification));
+        var extras = intent?.Extras;
+        if(extras != null) {
+           
+
+            if(NotificationActionTapped == null) {
+                _missedTappedNotification = notification;
+            } else {
+                NotificationActionTapped.Invoke(this, new FCMNotificationActionEventArgs(notification));
+            }
         }
         intent.RemoveExtra(IntentKeyFCMNotification);
     }

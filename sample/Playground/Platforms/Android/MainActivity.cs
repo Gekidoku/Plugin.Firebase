@@ -17,13 +17,13 @@ public class MainActivity : MauiAppCompatActivity
     protected override void OnCreate(Bundle savedInstanceState)
     {
         base.OnCreate(savedInstanceState);
-        HandleIntent(Intent);
+        HandleIntent(this, Intent);
         CreateNotificationChannelIfNeeded();
     }
 
-    private static void HandleIntent(Intent intent)
+    private static void HandleIntent(MainActivity activity,Intent intent)
     {
-        FirebaseCloudMessagingImplementation.OnNewIntent(intent);
+        FirebaseCloudMessagingImplementation.OnNewIntent(activity, intent);
         FirebaseDynamicLinksImplementation.HandleDynamicLinkAsync(intent).Ignore();
     }
 
@@ -38,7 +38,7 @@ public class MainActivity : MauiAppCompatActivity
     {
         var channelId = $"{PackageName}.general";
         var notificationManager = (NotificationManager) GetSystemService(NotificationService);
-        var channel = new NotificationChannel(channelId, "General", NotificationImportance.Default);
+        var channel = new NotificationChannel(channelId, "General", NotificationImportance.High);
         notificationManager.CreateNotificationChannel(channel);
         FirebaseCloudMessagingImplementation.ChannelId = channelId;
         FirebaseCloudMessagingImplementation.SmallIconRef = Resource.Drawable.ic_push_small;
@@ -60,6 +60,6 @@ public class MainActivity : MauiAppCompatActivity
     protected override void OnNewIntent(Intent intent)
     {
         base.OnNewIntent(intent);
-        HandleIntent(intent);
+        HandleIntent(this, intent);
     }
 }

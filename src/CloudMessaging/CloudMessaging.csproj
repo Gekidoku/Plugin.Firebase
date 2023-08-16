@@ -38,6 +38,7 @@
 
         <!--Version of C# to use -->
         <LangVersion>default</LangVersion>
+        <GeneratePackageOnBuild>True</GeneratePackageOnBuild>
     </PropertyGroup>
 
     <!-- Define what happens on build and release -->
